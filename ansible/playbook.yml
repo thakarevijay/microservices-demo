@@ -1,0 +1,16 @@
+---
+- name: Deploy microservices to minikube
+  hosts: local
+  gather_facts: true
+  roles:
+    - prerequisites
+    - docker_build
+    - k8s_deploy
+  post_tasks:
+    - name: Deployment complete
+      debug:
+        msg:
+          - "All done! Open in Windows Chrome:"
+          - "  http://localhost:5001/products"
+          - "  http://localhost:5002/orders"
+          - "  http://localhost:5002/orders/101/detail"

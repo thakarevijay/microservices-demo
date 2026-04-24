@@ -1,0 +1,2 @@
+nohup kubectl port-forward service/prometheus 9090:9090 -n monitoring --address=0.0.0.0 > /tmp/prometheus-pf.log 2>&1 &
+nohup kubectl port-forward service/grafana    3000:3000 -n monitoring --address=0.0.0.0 > /tmp/grafana-pf.log    2>&1 &

@@ -1,0 +1,103 @@
+---
+- name: Terraform init
+  command: terraform init
+  args:
+    chdir: ~/Study/microservices-demo/terraform
+
+- name: Terraform apply
+  command: terraform apply -auto-approve
+  args:
+    chdir: ~/Study/microservices-demo/terraform
+
+- name: Wait for products deployment
+  command: >
+    kubectl wait deployment/products-deployment
+    --for=condition=available
+    --timeout=120s
+    --namespace=microservices
+
+- name: Wait for orders deployment
+  command: >
+    kubectl wait deployment/orders-deployment
+    --for=condition=available
+    --timeout=120s
+    --namespace=microservices
+
+- name: Kill any existing port-forwards
+  shell: |
+    pkill -f "port-forward.*products-service" || true
+    pkill -f "port-forward.*orders-service" || true
+  ignore_errors: true
+
+- name: Port-forward products service (background)
+  shell: |
+    nohup kubectl port-forward service/products-service 5001:80 \
+      -n microservices --address=0.0.0.0 \
+      > /tmp/products-pf.log 2>&1 &
+    echo $! > /tmp/products-pf.pid
+    disown $!
+  async: 10
+  poll: 0
+  ignore_errors: true
+
+- name: Port-forward orders service (background)
+  shell: |
+    nohup kubectl port-forward service/orders-service 5002:80 \
+      -n microservices --address=0.0.0.0 \
+      > /tmp/orders-pf.log 2>&1 &
+    echo $! > /tmp/orders-pf.pid
+    disown $!
+  async: 10
+  poll: 0
+  ignore_errors: true
+
+- name: Wait for port-forwards to stabilise
+  pause:
+    seconds: 10
+
+- name: Check port-forward logs
+  shell: |
+    echo "=== Products ===" && cat /tmp/products-pf.log || true
+    echo "=== Orders ===" && cat /tmp/orders-pf.log || true
+  register: pf_logs
+  ignore_errors: true
+
+- name: Show port-forward logs
+  debug:
+    msg: "{{ pf_logs.stdout_lines }}"
+
+- name: Smoke test products
+  uri:
+    url: "http://localhost:5001/products"
+    status_code: 200
+  retries: 5
+  delay: 5
+  register: products_test
+  until: products_test.status == 200
+
+- name: Smoke test orders
+  uri:
+    url: "http://localhost:5002/orders"
+    status_code: 200
+  retries: 5
+  delay: 5
+  register: orders_test
+  until: orders_test.status == 200
+
+- name: Smoke test cross-service
+  uri:
+    url: "http://localhost:5002/orders/101/detail"
+    status_code: 200
+  register: detail_test
+
+- name: Print final results
+  debug:
+    msg:
+      - "Products API  : HTTP {{ products_test.status }}"
+      - "Orders API    : HTTP {{ orders_test.status }}"
+      - "Cross-service : HTTP {{ detail_test.status }}"
+      - "---"
+      - "Open in Windows Chrome:"
+      - "  http://localhost:5001/products"
+      - "  http://localhost:5002/orders"
+      - "  http://localhost:5002/orders/101/detail"

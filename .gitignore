@@ -1,0 +1,17 @@
+# .NET
+bin/
+obj/
+*.user
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfplan
+# IDE
+.vs/
+.idea/
+*.swp
+# Secrets — never commit
+*.pem
+*.key
+.env

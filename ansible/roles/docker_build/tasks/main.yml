@@ -1,0 +1,21 @@
+---
+- name: Build Products API image
+  shell: |
+    eval $(minikube docker-env)
+    cd ~/Study/microservices-demo/ProductsApi
+    docker build -t products-api:v1 .
+
+- name: Build Orders API image
+  shell: |
+    eval $(minikube docker-env)
+    cd ~/Study/microservices-demo/OrdersApi
+    docker build -t orders-api:v1 .
+
+- name: Confirm images exist
+  shell: |
+    eval $(minikube docker-env)
+    docker images | grep -E "orders-api|products-api"
+  register: images
+
+- debug:
+    msg: "{{ images.stdout_lines }}"

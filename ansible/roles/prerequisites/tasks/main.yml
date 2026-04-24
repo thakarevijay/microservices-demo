@@ -1,0 +1,42 @@
+---
+- name: Check minikube status
+  command: minikube status
+  register: minikube_status
+  ignore_errors: true
+
+- name: Start minikube if not running
+  command: minikube start --driver=docker --cpus=4 --memory=4g
+  when: "'Running' not in minikube_status.stdout"
+
+- name: Enable ingress addon
+  command: minikube addons enable ingress
+  ignore_errors: true
+
+- name: Fix inotify limits
+  become: true
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    sysctl_set: true
+    state: present
+    reload: true
+  loop:
+    - { name: "fs.inotify.max_user_instances", value: "512" }
+    - { name: "fs.inotify.max_user_watches",   value: "524288" }
+
+- name: Wait for ingress CONTROLLER only (not admission jobs)
+  command: >
+    kubectl wait --namespace ingress-nginx
+    --for=condition=ready pod
+    --selector=app.kubernetes.io/component=controller
+    --timeout=120s
+  register: ingress_wait
+  ignore_errors: true
+
+- name: Confirm ingress controller is running
+  command: kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller
+  register: ingress_pods
+
+- name: Show ingress controller status
+  debug:
+    msg: "{{ ingress_pods.stdout_lines }}"
