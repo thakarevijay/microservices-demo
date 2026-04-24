@@ -1,0 +1,164 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'terraform/**'
+      - 'ansible/**'
+      - 'k8s/**'
+      - '.github/workflows/cd.yml'
+  workflow_dispatch:
+    inputs:
+      skip_smoke_tests:
+        description: 'Skip ansible smoke tests'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  NAMESPACE: microservices
+  IMAGE_TAG: ${{ github.sha }}
+
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false  # never cancel a deploy mid-flight
+
+jobs:
+  deploy:
+    name: Build + deploy to minikube
+    # Runs on your WSL2 self-hosted runner. Labels set in setup-github-runner.sh.
+    runs-on: [self-hosted, wsl2, minikube]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Preflight — minikube & kubectl
+        run: |
+          set -euo pipefail
+          if ! minikube status >/dev/null 2>&1; then
+            echo "::error::minikube is not running. Start it with: minikube start"
+            exit 1
+          fi
+          kubectl cluster-info
+          kubectl get ns ${{ env.NAMESPACE }} >/dev/null 2>&1 || kubectl create ns ${{ env.NAMESPACE }}
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Build & test (guard)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for svc in orders-api products-api; do
+            pushd "src/$svc"
+            dotnet restore
+            dotnet build --no-restore -c Release
+            dotnet test --no-build -c Release --logger "console;verbosity=minimal"
+            popd
+          done
+
+      - name: Build images inside minikube's docker daemon
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(minikube docker-env)"
+          for svc in orders-api products-api; do
+            docker build \
+              -t "${svc}:${IMAGE_TAG}" \
+              -t "${svc}:latest" \
+              "src/$svc"
+          done
+          docker images | grep -E "orders-api|products-api" | head -20
+
+      - name: Install Trivy (if missing)
+        shell: bash
+        run: |
+          if ! command -v trivy >/dev/null 2>&1; then
+            mkdir -p "$HOME/.local/bin"
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sh -s -- -b "$HOME/.local/bin"
+          fi
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Trivy image scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(minikube docker-env)"
+          for svc in orders-api products-api; do
+            trivy image \
+              --severity HIGH,CRITICAL \
+              --ignore-unfixed \
+              --exit-code 0 \
+              --format table \
+              "${svc}:${IMAGE_TAG}"
+          done
+
+      - name: Terraform apply
+        working-directory: terraform
+        env:
+          TF_VAR_image_tag: ${{ env.IMAGE_TAG }}
+          TF_IN_AUTOMATION: 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          terraform init -input=false
+          terraform plan -input=false -out=tfplan
+          terraform apply -input=false -auto-approve tfplan
+
+      - name: Wait for rollout
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubectl -n "$NAMESPACE" rollout status deployment/orders-api --timeout=180s
+          kubectl -n "$NAMESPACE" rollout status deployment/products-api --timeout=180s
+          kubectl -n "$NAMESPACE" get pods -o wide
+
+      - name: Ansible smoke tests
+        if: ${{ inputs.skip_smoke_tests != true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -f ansible/smoke-tests.yml ]]; then
+            ansible-playbook ansible/smoke-tests.yml
+          else
+            echo "::warning::ansible/smoke-tests.yml not found — skipping"
+          fi
+
+      - name: Summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Deploy summary"
+            echo ""
+            echo "- **Commit:** \`${{ github.sha }}\`"
+            echo "- **Image tag:** \`${IMAGE_TAG}\`"
+            echo "- **Namespace:** \`${NAMESPACE}\`"
+            echo "- **Status:** ${{ job.status }}"
+            echo ""
+            echo "### Running pods"
+            echo '```'
+            kubectl -n "$NAMESPACE" get pods -o wide 2>/dev/null || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  rollback-on-failure:
+    name: Rollback on failure
+    needs: deploy
+    if: failure()
+    runs-on: [self-hosted, wsl2, minikube]
+    steps:
+      - name: kubectl rollout undo
+        shell: bash
+        run: |
+          set -euo pipefail
+          for d in orders-api products-api; do
+            kubectl -n "${{ env.NAMESPACE }}" rollout undo "deployment/$d" || true
+            kubectl -n "${{ env.NAMESPACE }}" rollout status "deployment/$d" --timeout=120s || true
+          done
