@@ -10,3 +10,8 @@ variable "products_replicas" {
 variable "environment" {
   default = "local"
 }
+variable "image_tag" {
+  type        = string
+  default     = "latest"
+  description = "Image tag to deploy. Set by CD to the commit SHA."
+}
