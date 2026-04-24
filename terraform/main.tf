@@ -69,7 +69,7 @@ resource "kubernetes_deployment" "products" {
       spec {
         container {
           name              = "products-api"
-          image             = "products-api:v1"
+          image             = "products-api:${var.image_tag}"
           image_pull_policy = "Never"
 
           port {
@@ -175,7 +175,7 @@ resource "kubernetes_deployment" "orders" {
       spec {
         container {
           name              = "orders-api"
-          image             = "orders-api:v1"
+          image             = "orders-api:${var.image_tag}"
           image_pull_policy = "Never"
 
           port {

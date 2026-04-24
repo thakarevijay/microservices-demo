@@ -119,8 +119,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl -n "$NAMESPACE" rollout status deployment/orders-api   --timeout=180s
-          kubectl -n "$NAMESPACE" rollout status deployment/products-api --timeout=180s
+          kubectl -n "$NAMESPACE" rollout status deployment/orders-deployment   --timeout=180s
+          kubectl -n "$NAMESPACE" rollout status deployment/products-deployment --timeout=180s
           kubectl -n "$NAMESPACE" get pods -o wide
 
       - name: Ansible smoke tests
@@ -162,7 +162,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for d in orders-api products-api; do
+          for d in orders-deployment products-deployment; do
             kubectl -n "${{ env.NAMESPACE }}" rollout undo "deployment/$d" || true
             kubectl -n "${{ env.NAMESPACE }}" rollout status "deployment/$d" --timeout=120s || true
           done
