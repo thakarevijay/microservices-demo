@@ -4,9 +4,9 @@
 # documentation of what CD actually does.
 #
 # Usage:
-#   ./deploy-local.sh [image_tag]
+#   ./scripts/deploy-local.sh [image_tag]
 #
-# Defaults image_tag to the current git SHA.
+# Defaults image_tag to the current short git SHA.
 
 set -euo pipefail
 
@@ -27,17 +27,13 @@ kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
 
 echo "==> Build images inside minikube's docker"
 eval "$(minikube docker-env)"
-for svc in orders-api products-api; do
-  docker build \
-    -t "${svc}:${IMAGE_TAG}" \
-    -t "${svc}:latest" \
-    "src/$svc"
-done
+docker build -t "orders-api:${IMAGE_TAG}"   -t "orders-api:latest"   OrdersApi
+docker build -t "products-api:${IMAGE_TAG}" -t "products-api:latest" ProductsApi
 
 echo "==> Trivy scan (advisory)"
 if command -v trivy >/dev/null 2>&1; then
-  for svc in orders-api products-api; do
-    trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "${svc}:${IMAGE_TAG}" || true
+  for image in orders-api products-api; do
+    trivy image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 0 "${image}:${IMAGE_TAG}" || true
   done
 else
   echo "trivy not installed — skipping scan"
@@ -56,6 +52,8 @@ kubectl -n "$NAMESPACE" rollout status deployment/products-api --timeout=180s
 echo "==> Smoke tests"
 if [[ -f ansible/smoke-tests.yml ]]; then
   ansible-playbook ansible/smoke-tests.yml
+else
+  echo "(no ansible/smoke-tests.yml found — skipping)"
 fi
 
 echo "==> Done"
