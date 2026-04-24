@@ -43,8 +43,8 @@ jobs:
         run: |
           set -euo pipefail
           if ! minikube status >/dev/null 2>&1; then
-            echo "::error::minikube is not running. Start it with: minikube start"
-            exit 1
+            echo "::warning::minikube is not running — starting it now"
+            minikube start --wait=all --wait-timeout=300s
           fi
           kubectl cluster-info
           kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
