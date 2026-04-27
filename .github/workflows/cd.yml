@@ -111,7 +111,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          terraform init -input=false
+          rm -rf .terraform terraform.tfstate terraform.tfstate.backup
+          terraform init -input=false -reconfigure
           terraform plan -input=false -out=tfplan
           terraform apply -input=false -auto-approve tfplan
 
