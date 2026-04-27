@@ -4,7 +4,7 @@ using Serilog;
 using Serilog.Formatting.Compact;
 
 var podName = Environment.GetEnvironmentVariable("POD_NAME") ?? "local";
-var podIp   = Environment.GetEnvironmentVariable("POD_IP")   ?? "unknown";
+var podIp = Environment.GetEnvironmentVariable("POD_IP") ?? "unknown";
 
 // Configure Serilog BEFORE creating builder
 Log.Logger = new LoggerConfiguration()
@@ -22,7 +22,8 @@ builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.Configure<ForwardedHeadersOptions>(options => {
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
     options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
     options.KnownNetworks.Clear();
     options.KnownProxies.Clear();
@@ -32,14 +33,16 @@ builder.Services.Configure<ForwardedHeadersOptions>(options => {
 var requestCounter = Metrics.CreateCounter(
     "api_requests_total",
     "Total API requests",
-    new CounterConfiguration {
+    new CounterConfiguration
+    {
         LabelNames = new[] { "service", "endpoint", "pod" }
     });
 
 var requestDuration = Metrics.CreateHistogram(
     "api_request_duration_seconds",
     "Request duration in seconds",
-    new HistogramConfiguration {
+    new HistogramConfiguration
+    {
         LabelNames = new[] { "service", "endpoint" },
         Buckets = Histogram.LinearBuckets(start: 0.01, width: 0.05, count: 10)
     });
@@ -73,25 +76,29 @@ var products = new[]
 
 // HEALTH/VERSION ENDPOINTS GO HERE
 app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
-app.MapGet("/version", () => Results.Ok(new {
+app.MapGet("/version", () => Results.Ok(new
+{
     service = "orders-api",
-    commit  = Environment.GetEnvironmentVariable("GIT_COMMIT") ?? "local",
+    commit = Environment.GetEnvironmentVariable("GIT_COMMIT") ?? "local",
     builtAt = Environment.GetEnvironmentVariable("BUILD_TIME") ?? "unknown"
 }));
 
-app.MapGet("/products", (ILogger<Program> logger) => {
+app.MapGet("/products", (ILogger<Program> logger) =>
+{
     using var timer = requestDuration.WithLabels("products-api", "/products").NewTimer();
     requestCounter.WithLabels("products-api", "/products", podName).Inc();
     logger.LogInformation("Listing {Count} products", products.Length);
     return new { pod = podName, ip = podIp, service = "products-api", count = products.Length, data = products };
 });
 
-app.MapGet("/products/{id:int}", (int id, ILogger<Program> logger) => {
+app.MapGet("/products/{id:int}", (int id, ILogger<Program> logger) =>
+{
     using var timer = requestDuration.WithLabels("products-api", "/products/{id}").NewTimer();
     requestCounter.WithLabels("products-api", "/products/{id}", podName).Inc();
     productsViewed.WithLabels(id.ToString()).Inc();   // business metric
     var p = products.FirstOrDefault(x => x.Id == id);
-    if (p is null) {
+    if (p is null)
+    {
         logger.LogWarning("Product {Id} not found", id);
         return Results.NotFound(new { error = $"Product {id} not found", pod = podName });
     }
@@ -101,17 +108,22 @@ app.MapGet("/products/{id:int}", (int id, ILogger<Program> logger) => {
 
 app.MapGet("/products/info", () => new { pod = podName, ip = podIp, service = "products-api" });
 app.MapHealthChecks("/health");
-app.MapGet("/ready",  () => Results.Ok(new { status = "ready", pod = podName }));
+app.MapGet("/ready", () => Results.Ok(new { status = "ready", pod = podName }));
 app.MapPost("/crash", () => { Task.Delay(200).ContinueWith(_ => Environment.Exit(1)); return Results.Ok(new { pod = podName }); });
 
 
-try {
+try
+{
     Log.Information("Starting Products API on pod {Pod}", podName);
     app.Run("http://0.0.0.0:8080");
-   
-} catch (Exception ex) {
+
+}
+catch (Exception ex)
+{
     Log.Fatal(ex, "Products API crashed");
-} finally {
+}
+finally
+{
     Log.CloseAndFlush();
 }
- public partial class Program;
+public partial class Program;
