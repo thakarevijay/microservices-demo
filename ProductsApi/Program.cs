@@ -71,6 +71,14 @@ var products = new[]
     new { Id = 5, Name = "Headphones", Price = 149.99m,  Stock = 61 },
 };
 
+// HEALTH/VERSION ENDPOINTS GO HERE
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/version", () => Results.Ok(new {
+    service = "orders-api",
+    commit  = Environment.GetEnvironmentVariable("GIT_COMMIT") ?? "local",
+    builtAt = Environment.GetEnvironmentVariable("BUILD_TIME") ?? "unknown"
+}));
+
 app.MapGet("/products", (ILogger<Program> logger) => {
     using var timer = requestDuration.WithLabels("products-api", "/products").NewTimer();
     requestCounter.WithLabels("products-api", "/products", podName).Inc();
@@ -100,8 +108,10 @@ app.MapPost("/crash", () => { Task.Delay(200).ContinueWith(_ => Environment.Exit
 try {
     Log.Information("Starting Products API on pod {Pod}", podName);
     app.Run("http://0.0.0.0:8080");
+   
 } catch (Exception ex) {
     Log.Fatal(ex, "Products API crashed");
 } finally {
     Log.CloseAndFlush();
 }
+ public partial class Program;

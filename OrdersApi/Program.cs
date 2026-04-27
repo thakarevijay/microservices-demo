@@ -84,6 +84,14 @@ var orders = new[]
     new { Id = 104, CustomerId = "C003", ProductId = 2, Quantity = 5, Status = "Pending"   },
 };
 
+// HEALTH/VERSION ENDPOINTS GO HERE
+app.MapGet("/health", () => Results.Ok(new { status = "healthy" }));
+app.MapGet("/version", () => Results.Ok(new {
+    service = "orders-api",
+    commit  = Environment.GetEnvironmentVariable("GIT_COMMIT") ?? "local",
+    builtAt = Environment.GetEnvironmentVariable("BUILD_TIME") ?? "unknown"
+}));
+
 // GET /orders — list all orders
 app.MapGet("/orders", (ILogger<Program> logger) => {
     using var timer = requestDuration.WithLabels("orders-api", "/orders").NewTimer();
@@ -168,3 +176,4 @@ app.MapPost("/crash", () => { Task.Delay(200).ContinueWith(_ => Environment.Exit
 
 
 app.Run("http://0.0.0.0:8080");
+public partial class Program;

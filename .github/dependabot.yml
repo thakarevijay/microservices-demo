@@ -1,0 +1,81 @@
+version: 2
+updates:
+  # GitHub Actions
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, github-actions]
+
+  # NuGet — OrdersApi
+  - package-ecosystem: nuget
+    directory: /OrdersApi
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, nuget, orders-api]
+    groups:
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+      aspnet:
+        patterns: ["Microsoft.AspNetCore.*"]
+
+  # NuGet — ProductsApi
+  - package-ecosystem: nuget
+    directory: /ProductsApi
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    labels: [dependencies, nuget, products-api]
+    groups:
+      microsoft-extensions:
+        patterns: ["Microsoft.Extensions.*"]
+      aspnet:
+        patterns: ["Microsoft.AspNetCore.*"]
+
+  # NuGet — test projects (created later in this milestone)
+  - package-ecosystem: nuget
+    directory: /OrdersApi.Tests
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, nuget, tests]
+
+  - package-ecosystem: nuget
+    directory: /ProductsApi.Tests
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, nuget, tests]
+
+  # Dockerfiles
+  - package-ecosystem: docker
+    directory: /OrdersApi
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, docker]
+
+  - package-ecosystem: docker
+    directory: /ProductsApi
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, docker]
+
+  # Terraform providers
+  - package-ecosystem: terraform
+    directory: /terraform
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 3
+    labels: [dependencies, terraform]
