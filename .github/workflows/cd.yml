@@ -24,6 +24,13 @@ env:
   DOTNET_VERSION: '8.0.x'
   NAMESPACE: microservices
   IMAGE_TAG: ${{ github.sha }}
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}   # → thakarevijay
+
+permissions:
+  contents: read
+  packages: write
+
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -108,6 +115,37 @@ jobs:
               --exit-code 0 \
               --format table \
               "${image}:${IMAGE_TAG}"
+          done
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+ 
+      - name: Tag & push to GHCR
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Build against the HOST docker daemon (not minikube's) and push to GHCR.
+          # The minikube build above stays so the local cluster keeps working unchanged.
+          # GHCR rejects uppercase in image paths, so lowercase the owner.
+          OWNER_LC="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          declare -A PROJECTS=(
+            ["orders-api"]="OrdersApi"
+            ["products-api"]="ProductsApi"
+          )
+          for svc in "${!PROJECTS[@]}"; do
+            proj="${PROJECTS[$svc]}"
+            image="${REGISTRY}/${OWNER_LC}/${svc}"
+            docker build \
+              -t "${image}:${IMAGE_TAG}" \
+              -t "${image}:latest" \
+              "${proj}"
+            docker push "${image}:${IMAGE_TAG}"
+            docker push "${image}:latest"
+            echo "Pushed ${image}:${IMAGE_TAG}"
           done
 
       - name: Terraform apply
