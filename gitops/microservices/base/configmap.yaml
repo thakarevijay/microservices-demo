@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: microservices
+data:
+  ENVIRONMENT: dev
+  PRODUCTS_SERVICE_URL: http://products-service

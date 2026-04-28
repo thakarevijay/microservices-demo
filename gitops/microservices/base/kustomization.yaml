@@ -1,0 +1,22 @@
+# Kustomize entry point for the microservices namespace.
+# ArgoCD will run `kustomize build` against this and apply the result.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: microservices
+
+resources:
+  - configmap.yaml
+  - secret.yaml
+  - products-deployment.yaml
+  - products-service.yaml
+  - orders-deployment.yaml
+  - orders-service.yaml
+
+# CD pipeline updates the `newTag` values below on every push to main.
+# ArgoCD detects the change in this file and re-syncs the cluster.
+images:
+  - name: ghcr.io/thakarevijay/orders-api
+    newTag: latest
+  - name: ghcr.io/thakarevijay/products-api
+    newTag: latest
