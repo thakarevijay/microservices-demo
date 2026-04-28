@@ -8,14 +8,15 @@ terraform {
 
   backend "kubernetes" {
     secret_suffix  = "microservices-state"
-    config_path    = "~/.kube/config"
-    config_context = "minikube"
+    # config_path    = "~/.kube/config"
+    # config_context = "minikube"
   }
 }
 
 provider "kubernetes" {
-  config_path    = "~/.kube/config"
-  config_context = "minikube"
+  # config_path    = "~/.kube/config"
+  # config_context = "minikube"
+  # Reads KUBECONFIG from env
 }
 
 resource "kubernetes_namespace" "microservices" {
@@ -75,8 +76,10 @@ resource "kubernetes_deployment" "products" {
       spec {
         container {
           name              = "products-api"
-          image             = "products-api:${var.image_tag}"
-          image_pull_policy = "Never"
+          # Was:  image = "products-api:${var.image_tag}"
+          image = "ghcr.io/thakarevijay/products-api:${var.image_tag}"
+          # Was:  image_pull_policy = "Never"
+          image_pull_policy = "IfNotPresent"
 
           port {
             container_port = 8080
@@ -181,8 +184,10 @@ resource "kubernetes_deployment" "orders" {
       spec {
         container {
           name              = "orders-api"
-          image             = "orders-api:${var.image_tag}"
-          image_pull_policy = "Never"
+          # Was:  image = "orders-api:${var.image_tag}"
+          image = "ghcr.io/thakarevijay/orders-api:${var.image_tag}"
+          # Was:  image_pull_policy = "Never"
+          image_pull_policy = "IfNotPresent"
 
           port {
             container_port = 8080
