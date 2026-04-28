@@ -22,8 +22,10 @@ jobs:
       matrix:
         include:
           - project: OrdersApi
+            tests: OrdersApi.Tests
             image: orders-api
           - project: ProductsApi
+            tests: ProductsApi.Tests
             image: products-api
     defaults:
       run:
@@ -50,25 +52,25 @@ jobs:
 
       - name: Format check
         run: dotnet format --verify-no-changes --severity error
-        continue-on-error: true  # flip to false once repo is clean
 
       - name: Build
         run: dotnet build --no-restore -c Release
 
       - name: Test
-        run: >
-          dotnet test --no-build -c Release
-          --logger "trx;LogFileName=test-results.trx"
-          --collect:"XPlat Code Coverage"
-          --results-directory ./TestResults
-        continue-on-error: true  # no test project yet; flip to false once you add tests
+        working-directory: ${{ matrix.tests }}
+        run: |
+          dotnet restore
+          dotnet test -c Release \
+            --logger "trx;LogFileName=test-results.trx" \
+            --collect:"XPlat Code Coverage" \
+            --results-directory ./TestResults
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.project }}
-          path: ${{ matrix.project }}/TestResults/**
+          path: ${{ matrix.tests }}/TestResults/**
           if-no-files-found: warn
 
   dockerfile-lint:

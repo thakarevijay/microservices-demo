@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
       - name: products-api
-        image: products-api:v1
-        imagePullPolicy: Never
+        image: products-api:${var.image_tag}
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8080
         env:
