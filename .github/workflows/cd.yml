@@ -7,23 +7,20 @@ on:
       - 'OrdersApi/**'
       - 'ProductsApi/**'
       - 'terraform/**'
-      - 'ansible/**'
-      - 'k8s/**'
-      - 'k8s-elk/**'
-      - 'k8s-monitoring/**'
       - '.github/workflows/cd.yml'
   workflow_dispatch:
-    inputs:
-      skip_smoke_tests:
-        description: 'Skip ansible smoke tests'
-        required: false
-        default: 'false'
-        type: boolean
 
 env:
-  DOTNET_VERSION: '8.0.x'
   NAMESPACE: microservices
   IMAGE_TAG: ${{ github.sha }}
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: ${{ github.repository_owner }}
+  KUBECONFIG: /home/runner/.kube/config
+  KUBE_CONFIG_PATH: /home/runner/.kube/config
+
+permissions:
+  contents: read
+  packages: write
 
 concurrency:
   group: cd-${{ github.ref }}
@@ -31,77 +28,81 @@ concurrency:
 
 jobs:
   deploy:
-    name: Build + deploy to minikube
-    # Runs on your WSL2 self-hosted runner. Labels set in setup-github-runner.sh.
-    runs-on: [self-hosted, wsl2, minikube]
+    name: Build + deploy to Civo
+    runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
-      - name: Preflight — minikube & kubectl
-        shell: bash
-        run: |
-          set -euo pipefail
-          if ! minikube status >/dev/null 2>&1; then
-            echo "::warning::minikube is not running — starting it now"
-            minikube start --wait=all --wait-timeout=300s
-          fi
-          kubectl cluster-info
-          kubectl get ns "$NAMESPACE" >/dev/null 2>&1 || kubectl create ns "$NAMESPACE"
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        env:
-          DOTNET_INSTALL_DIR: ${{ runner.temp }}/.dotnet
+      - name: Login to GHCR
+        uses: docker/login-action@v3
         with:
-          dotnet-version: ${{ env.DOTNET_VERSION }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & test (guard)
+      - name: Build & push images to GHCR
         shell: bash
         run: |
           set -euo pipefail
-          for proj in OrdersApi ProductsApi; do
-            pushd "$proj"
-            dotnet restore
-            dotnet build --no-restore -c Release
-            # skip tests until you add a test project
-            # dotnet test --no-build -c Release --logger "console;verbosity=minimal"
-            popd
+          OWNER_LC="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          declare -A PROJECTS=(
+            ["orders-api"]="OrdersApi"
+            ["products-api"]="ProductsApi"
+          )
+          BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          for svc in "${!PROJECTS[@]}"; do
+            proj="${PROJECTS[$svc]}"
+            image="${REGISTRY}/${OWNER_LC}/${svc}"
+            docker build \
+              -t "${image}:${IMAGE_TAG}" \
+              -t "${image}:latest" \
+              --build-arg GIT_COMMIT="${IMAGE_TAG}" \
+              --build-arg BUILD_TIME="${BUILD_TIME}" \
+              "${proj}"
+            docker push "${image}:${IMAGE_TAG}"
+            docker push "${image}:latest"
+            echo "Pushed ${image}:${IMAGE_TAG}"
           done
-
-      - name: Build images inside minikube's docker daemon
-        shell: bash
-        run: |
-          set -euo pipefail
-          eval "$(minikube docker-env)"
-          # PascalCase project → lowercase image tag
-          docker build -t "orders-api:${IMAGE_TAG}"   -t "orders-api:latest"   OrdersApi
-          docker build -t "products-api:${IMAGE_TAG}" -t "products-api:latest" ProductsApi
-          docker images | grep -E "orders-api|products-api" | head -20
-
-      - name: Install Trivy (if missing)
-        shell: bash
-        run: |
-          if ! command -v trivy >/dev/null 2>&1; then
-            mkdir -p "$HOME/.local/bin"
-            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
-              | sh -s -- -b "$HOME/.local/bin"
-          fi
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
       - name: Trivy image scan
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(minikube docker-env)"
-          for image in orders-api products-api; do
+          if ! command -v trivy >/dev/null 2>&1; then
+            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
+              | sudo sh -s -- -b /usr/local/bin
+          fi
+          OWNER_LC="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          for svc in orders-api products-api; do
             trivy image \
               --severity HIGH,CRITICAL \
               --ignore-unfixed \
               --exit-code 0 \
               --format table \
-              "${image}:${IMAGE_TAG}"
+              "${REGISTRY}/${OWNER_LC}/${svc}:${IMAGE_TAG}"
           done
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig from secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${KUBECONFIG}")"
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "${KUBECONFIG}"
+          chmod 600 "${KUBECONFIG}"
+          echo "Cluster context: $(kubectl config current-context)"
+          kubectl get nodes
+          kubectl version --short || kubectl version
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.7.5'
 
       - name: Terraform apply
         working-directory: terraform
@@ -111,7 +112,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          rm -rf .terraform terraform.tfstate terraform.tfstate.backup
           terraform init -input=false -reconfigure
           terraform plan -input=false -out=tfplan
           terraform apply -input=false -auto-approve tfplan
@@ -120,36 +120,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          kubectl -n "$NAMESPACE" rollout status deployment/orders-deployment   --timeout=180s
-          kubectl -n "$NAMESPACE" rollout status deployment/products-deployment --timeout=180s
-          kubectl -n "$NAMESPACE" get pods -o wide
-
-      - name: Ansible smoke tests
-        if: ${{ inputs.skip_smoke_tests != true }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ -f ansible/smoke-tests.yml ]]; then
-            ansible-playbook ansible/smoke-tests.yml
-          else
-            echo "::warning::ansible/smoke-tests.yml not found — skipping"
-          fi
+          kubectl -n "${NAMESPACE}" rollout status deployment/orders-deployment   --timeout=240s
+          kubectl -n "${NAMESPACE}" rollout status deployment/products-deployment --timeout=240s
+          kubectl -n "${NAMESPACE}" get pods -o wide
 
       - name: Summary
         if: always()
         shell: bash
         run: |
+          OWNER_LC="$(echo "${IMAGE_OWNER}" | tr '[:upper:]' '[:lower:]')"
           {
             echo "## Deploy summary"
             echo ""
             echo "- **Commit:** \`${{ github.sha }}\`"
             echo "- **Image tag:** \`${IMAGE_TAG}\`"
+            echo "- **Cluster:** Civo (managed k3s)"
             echo "- **Namespace:** \`${NAMESPACE}\`"
             echo "- **Status:** ${{ job.status }}"
             echo ""
+            echo "### Pushed images"
+            echo "- \`${REGISTRY}/${OWNER_LC}/orders-api:${IMAGE_TAG}\`"
+            echo "- \`${REGISTRY}/${OWNER_LC}/products-api:${IMAGE_TAG}\`"
+            echo ""
             echo "### Running pods"
             echo '```'
-            kubectl -n "$NAMESPACE" get pods -o wide 2>/dev/null || true
+            kubectl -n "${NAMESPACE}" get pods -o wide 2>/dev/null || true
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -157,13 +152,26 @@ jobs:
     name: Rollback on failure
     needs: deploy
     if: failure()
-    runs-on: [self-hosted, wsl2, minikube]
+    runs-on: ubuntu-latest
     steps:
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: 'latest'
+
+      - name: Configure kubeconfig from secret
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "${KUBECONFIG}")"
+          echo "${{ secrets.KUBECONFIG_B64 }}" | base64 -d > "${KUBECONFIG}"
+          chmod 600 "${KUBECONFIG}"
+
       - name: kubectl rollout undo
         shell: bash
         run: |
           set -euo pipefail
           for d in orders-deployment products-deployment; do
-            kubectl -n "${{ env.NAMESPACE }}" rollout undo "deployment/$d" || true
-            kubectl -n "${{ env.NAMESPACE }}" rollout status "deployment/$d" --timeout=120s || true
+            kubectl -n "${NAMESPACE}" rollout undo "deployment/$d" || true
+            kubectl -n "${NAMESPACE}" rollout status "deployment/$d" --timeout=120s || true
           done
