@@ -2,9 +2,7 @@
 # ArgoCD will run `kustomize build` against this and apply the result.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-
 namespace: microservices
-
 resources:
   - configmap.yaml
   - secret.yaml
@@ -12,11 +10,10 @@ resources:
   - products-service.yaml
   - orders-deployment.yaml
   - orders-service.yaml
-
 # CD pipeline updates the `newTag` values below on every push to main.
 # ArgoCD detects the change in this file and re-syncs the cluster.
 images:
   - name: ghcr.io/thakarevijay/orders-api
-    newTag: latest
+    newTag: 2c6c69e8eb2a913a7effd4290a7149a3c06f227d
   - name: ghcr.io/thakarevijay/products-api
-    newTag: latest
+    newTag: 2c6c69e8eb2a913a7effd4290a7149a3c06f227d
