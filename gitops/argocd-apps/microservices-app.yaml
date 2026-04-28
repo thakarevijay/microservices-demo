@@ -1,0 +1,32 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: microservices
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/thakarevijay/microservices-demo
+    targetRevision: main
+    path: gitops/microservices/base
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: microservices
+
+  syncPolicy:
+    automated:
+      prune: true       # delete resources that disappear from git
+      selfHeal: true    # revert manual kubectl edits back to git state
+    syncOptions:
+      - CreateNamespace=false   # terraform creates the namespace
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 2m
