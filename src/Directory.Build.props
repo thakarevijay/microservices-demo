@@ -1,0 +1,58 @@
+<Project>
+
+  <!--
+    Shared MSBuild settings for every project under src/.
+    Old flat services at the repo root are unaffected (no Directory.Build.props above them).
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- Quality -->
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!--
+      AnalysisMode=Recommended (not AllEnabledByDefault).
+      AllEnabledByDefault turns on every CA rule including stylistic ones, which
+      blocks the build on suggestions like CA1848 (LoggerMessage delegates) and
+      CA1000 (static members on generic types). Recommended is the SDK's curated set.
+    -->
+    <AnalysisLevel>latest</AnalysisLevel>
+    <AnalysisMode>Recommended</AnalysisMode>
+
+    <!-- Reproducibility -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- Diagnostics -->
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!--
+      Rule suppressions:
+        CS1591  – missing XML comment on public member (we don't ship NuGet packages).
+        CA1812  – internal class never instantiated (DI resolves them via reflection).
+        CA1515  – consider making public types internal (BuildingBlocks IS the public API).
+        CA1000  – static members on generic types (deliberate factory pattern on Result&lt;T&gt;).
+        CA1848  – use LoggerMessage delegates (perf optimization, overkill for early-stage code).
+        CA1031  – do not catch general exception types (LoggingBehavior intentionally rethrows after log).
+        CA2007  – ConfigureAwait — irrelevant for ASP.NET Core (no synchronization context).
+        NU1902  – known moderate transitive vuln (TODO: bump OTel chain & remove suppression).
+    -->
+    <NoWarn>$(NoWarn);CS1591;CA1812;CA1515;CA1000;CA1848;CA1031;CA2007;NU1902</NoWarn>
+
+    <!-- Output -->
+    <ArtifactsPath>$(MSBuildThisFileDirectory)../artifacts</ArtifactsPath>
+
+    <!-- NuGet -->
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <!-- Test projects opt out of warnings-as-errors for things that don't matter in tests -->
+  <PropertyGroup Condition="$(MSBuildProjectName.EndsWith('.Tests')) or $(MSBuildProjectName.EndsWith('.IntegrationTests')) or $(MSBuildProjectName.EndsWith('.UnitTests'))">
+    <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);CA1707;CA1861;CA2007;CA1063</NoWarn>
+  </PropertyGroup>
+
+</Project>

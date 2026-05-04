@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>BuildingBlocks.Contracts</RootNamespace>
+    <AssemblyName>BuildingBlocks.Contracts</AssemblyName>
+    <Description>Public contracts: integration event base types and shared DTOs that cross service boundaries. Treat as a public API — never break consumers.</Description>
+  </PropertyGroup>
+
+</Project>
