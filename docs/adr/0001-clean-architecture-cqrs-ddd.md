@@ -6,7 +6,9 @@
 
 ## Context
 
-The existing OrdersApi and ProductsApi services are flat single-project apps with all logic, configuration, and HTTP handling in `Program.cs`. As the system grows to five services (Orders, Catalog, Basket, Payments, Products) with shared concerns (auth, messaging, observability, persistence), the flat layout will not scale: it mixes business rules with infrastructure concerns, makes testing painful, and forces every developer to re-derive cross-cutting plumbing per service.
+The existing OrdersApi and ProductsApi services are flat single-project apps with all logic, configuration, and HTTP handling in `Program.cs`. As the system grows to five services (Orders, Catalog, Basket, Payments, Products) 
+with shared concerns (auth, messaging, observability, persistence), the flat layout will not scale: it mixes business rules with infrastructure concerns, 
+makes testing painful, and forces every developer to re-derive cross-cutting plumbing per service.
 
 We need a layered structure that:
 

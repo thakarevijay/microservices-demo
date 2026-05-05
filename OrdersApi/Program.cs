@@ -37,7 +37,7 @@ var requestCounter = Metrics.CreateCounter(
     "Total API requests",
     new CounterConfiguration
     {
-        LabelNames = new[] { "service", "endpoint", "pod" }
+        LabelNames = ["service", "endpoint", "pod"]
     });
 
 var requestDuration = Metrics.CreateHistogram(
@@ -45,7 +45,7 @@ var requestDuration = Metrics.CreateHistogram(
     "Request duration in seconds",
     new HistogramConfiguration
     {
-        LabelNames = new[] { "service", "endpoint" },
+        LabelNames = ["service", "endpoint"],
         Buckets = Histogram.LinearBuckets(start: 0.01, width: 0.05, count: 10)
     });
 
@@ -53,7 +53,7 @@ var requestDuration = Metrics.CreateHistogram(
 var ordersCreated = Metrics.CreateCounter(
     "orders_viewed_total",
     "Total orders viewed",
-    new CounterConfiguration { LabelNames = new[] { "status" } });
+    new CounterConfiguration { LabelNames = ["status"] });
 
 // HttpClient for calling Products API — uses K8s DNS service name
 builder.Services.AddHttpClient("products", client =>
@@ -191,5 +191,5 @@ app.MapGet("/ready", () => Results.Ok(new { status = "ready", pod = podName, ser
 app.MapPost("/crash", () => { Task.Delay(200).ContinueWith(_ => Environment.Exit(1)); return Results.Ok(new { pod = podName }); });
 
 
-app.Run("http://0.0.0.0:8080");
+await app.RunAsync("http://0.0.0.0:8080");
 public partial class Program;// touched at Tue Apr 28 16:08:46 CEST 2026

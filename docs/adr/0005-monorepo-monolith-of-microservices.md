@@ -6,7 +6,8 @@
 
 ## Context
 
-The repo already exists as a monorepo (`thakarevijay/microservices-demo`) with CI/CD, GitOps via ArgoCD, and a single GHCR registry. Splitting into per-service repos would require duplicating CI/CD, ArgoCD wiring, and shared infrastructure code. The project is one developer's portfolio/learning system — coordination overhead of polyrepo isn't worth the isolation it buys.
+The repo already exists as a monorepo (`thakarevijay/microservices-demo`) with CI/CD, GitOps via ArgoCD, and a single GHCR registry. Splitting into per-service repos would require duplicating CI/CD, 
+ArgoCD wiring, and shared infrastructure code. The project is one developer's portfolio/learning system — coordination overhead of polyrepo isn't worth the isolation it buys.
 
 ## Decision
 

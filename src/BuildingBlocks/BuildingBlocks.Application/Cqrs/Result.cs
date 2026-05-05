@@ -6,7 +6,7 @@ namespace BuildingBlocks.Application.Cqrs;
 /// </summary>
 public class Result
 {
-    protected Result(bool isSuccess, IReadOnlyList<Error> errors)
+    protected Result(bool isSuccess, IReadOnlyList<ErrorApp> errors)
     {
         if (isSuccess && errors.Count > 0)
         {
@@ -26,19 +26,19 @@ public class Result
 
     public bool IsFailure => !IsSuccess;
 
-    public IReadOnlyList<Error> Errors { get; }
+    public IReadOnlyList<ErrorApp> Errors { get; }
 
-    public Error FirstError => Errors[0];
+    public ErrorApp FirstError => Errors[0];
 
-    public static Result Success() => new(true, Array.Empty<Error>());
+    public static Result Success() => new(true, Array.Empty<ErrorApp>());
 
-    public static Result Failure(Error error) => new(false, new[] { error });
+    public static Result Failure(ErrorApp error) => new(false, new[] { error });
 
-    public static Result Failure(IReadOnlyList<Error> errors) => new(false, errors);
+    public static Result Failure(IReadOnlyList<ErrorApp> errors) => new(false, errors);
 
     public static Result<T> Success<T>(T value) => Result<T>.Success(value);
 
-    public static Result<T> Failure<T>(Error error) => Result<T>.Failure(error);
+    public static Result<T> Failure<T>(ErrorApp error) => Result<T>.Failure(error);
 }
 
 /// <summary>
@@ -48,9 +48,9 @@ public sealed class Result<T> : Result
 {
     private readonly T? _value;
 
-    private Result(T value) : base(true, Array.Empty<Error>()) => _value = value;
+    private Result(T value) : base(true, Array.Empty<ErrorApp>()) => _value = value;
 
-    private Result(IReadOnlyList<Error> errors) : base(false, errors) => _value = default;
+    private Result(IReadOnlyList<ErrorApp> errors) : base(false, errors) => _value = default;
 
     public T Value => IsSuccess
         ? _value!
@@ -58,9 +58,9 @@ public sealed class Result<T> : Result
 
     public static Result<T> Success(T value) => new(value);
 
-    public static new Result<T> Failure(Error error) => new(new[] { error });
+    public static new Result<T> Failure(ErrorApp error) => new(new[] { error });
 
-    public static new Result<T> Failure(IReadOnlyList<Error> errors) => new(errors);
+    public static new Result<T> Failure(IReadOnlyList<ErrorApp> errors) => new(errors);
 
     public static implicit operator Result<T>(T value) => Success(value);
 }

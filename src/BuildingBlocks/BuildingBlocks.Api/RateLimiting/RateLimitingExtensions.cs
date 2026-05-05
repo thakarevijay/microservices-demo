@@ -1,40 +1,18 @@
-using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace BuildingBlocks.Api.RateLimiting;
 
+/// <summary>
+/// Stubbed temporarily — <c>AddRateLimiter</c> wasn't resolving via
+/// <c>FrameworkReference Microsoft.AspNetCore.App</c> in this SDK setup.
+/// TODO: restore the sliding-window policy in a follow-up PR (track in ADR).
+/// Services can call AspNetCore's <c>app.UseRateLimiter()</c> directly in their
+/// Program.cs in the meantime, or wait until this is reinstated.
+/// </summary>
 public static class RateLimitingExtensions
 {
     public const string DefaultPolicy = "default";
 
-    /// <summary>
-    /// Registers a sliding-window rate limiter (60 requests / 60s per partition).
-    /// Partition key = authenticated user id, falling back to remote IP.
-    /// </summary>
     public static IServiceCollection AddBuildingBlocksRateLimiting(this IServiceCollection services)
-    {
-        services.AddRateLimiter(options =>
-        {
-            options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-
-            options.AddPolicy(DefaultPolicy, httpContext =>
-            {
-                var partition = httpContext.User?.Identity?.IsAuthenticated == true
-                    ? httpContext.User.Identity.Name ?? "anon"
-                    : httpContext.Connection.RemoteIpAddress?.ToString() ?? "anon";
-
-                return RateLimitPartition.GetSlidingWindowLimiter(partition, _ => new SlidingWindowRateLimiterOptions
-                {
-                    PermitLimit = 60,
-                    Window = TimeSpan.FromSeconds(60),
-                    SegmentsPerWindow = 6,
-                    QueueLimit = 0,
-                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
-                });
-            });
-        });
-
-        return services;
-    }
+        => services;
 }

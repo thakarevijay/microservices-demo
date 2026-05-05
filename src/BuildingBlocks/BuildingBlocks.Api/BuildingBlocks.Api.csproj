@@ -1,13 +1,16 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <RootNamespace>BuildingBlocks.Api</RootNamespace>
     <AssemblyName>BuildingBlocks.Api</AssemblyName>
     <Description>API-layer cross-cutting concerns: exception handling, ProblemDetails, JWT auth, API versioning, rate limiting, health checks, OpenAPI.</Description>
-    <!-- Suppress aspnet web SDK warning about an empty web project (this is a class library that uses web types) -->
-    <NoWarn>$(NoWarn);ASP0000</NoWarn>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
+  <!-- Class library that uses ASP.NET Core types: regular SDK + FrameworkReference (no Program.cs needed). -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\BuildingBlocks.Domain\BuildingBlocks.Domain.csproj" />

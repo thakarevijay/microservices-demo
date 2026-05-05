@@ -43,7 +43,7 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
         }
 
         var errors = failures
-            .Select(f => Error.Validation(f.PropertyName, f.ErrorMessage))
+            .Select(f => ErrorApp.Validation(f.PropertyName, f.ErrorMessage))
             .ToArray();
 
         // If TResponse is Result or Result<T>, return a failure; otherwise rethrow.
@@ -58,7 +58,7 @@ public sealed class ValidationBehavior<TRequest, TResponse> : IPipelineBehavior<
             var resultType = typeof(TResponse).GetGenericArguments()[0];
             var failureMethod = typeof(Result<>)
                 .MakeGenericType(resultType)
-                .GetMethod(nameof(Result<object>.Failure), new[] { typeof(IReadOnlyList<Error>) })!;
+                .GetMethod(nameof(Result<object>.Failure), new[] { typeof(IReadOnlyList<ErrorApp>) })!;
             return (TResponse)failureMethod.Invoke(null, new object[] { errors })!;
         }
 

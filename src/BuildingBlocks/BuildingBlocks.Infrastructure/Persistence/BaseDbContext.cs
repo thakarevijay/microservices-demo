@@ -37,11 +37,17 @@ public abstract class BaseDbContext : DbContext, IUnitOfWork
     public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         var aggregates = ChangeTracker.Entries()
-            .Where(e => e.Entity is AggregateRoot<Guid>
-                     || e.Entity.GetType().BaseType?.IsGenericType == true
-                        && e.Entity.GetType().BaseType.GetGenericTypeDefinition() == typeof(AggregateRoot<>))
-            .Select(e => e.Entity)
-            .ToList();
+    .Where(e =>
+    {
+        var baseType = e.Entity.GetType().BaseType;
+
+        return e.Entity is AggregateRoot<Guid>
+            || (baseType != null
+                && baseType.IsGenericType
+                && baseType.GetGenericTypeDefinition() == typeof(AggregateRoot<>));
+    })
+    .Select(e => e.Entity)
+    .ToList();
 
         var domainEvents = aggregates
             .SelectMany(a =>

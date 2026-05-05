@@ -6,7 +6,8 @@
 
 ## Context
 
-Five services need a consistent way to authenticate users and authorize service-to-service calls. Options ranged from rolling our own auth service (rejected immediately — no good outcomes) to Duende IdentityServer (commercial, .NET-native) to Keycloak (open source, JVM, OIDC/OAuth 2.0). Cost matters; the project runs on a small Civo cluster with no commercial licensing budget.
+Five services need a consistent way to authenticate users and authorize service-to-service calls. Options ranged from rolling our own auth service (rejected immediately — no good outcomes) 
+to Duende IdentityServer (commercial, .NET-native) to Keycloak (open source, JVM, OIDC/OAuth 2.0). Cost matters; the project runs on a small Civo cluster with no commercial licensing budget.
 
 ## Decision
 

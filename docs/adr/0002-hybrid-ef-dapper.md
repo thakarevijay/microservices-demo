@@ -8,7 +8,8 @@
 
 The team's first instinct was to replace EF Core with Dapper across the board, citing performance and "more control." On closer inspection, the actual constraints are:
 
-- The write side persists DDD aggregates with private setters, value objects, owned types, and domain events that must be dispatched on SaveChanges. EF Core handles all of this with built-in change tracking, identity map, and a transactional unit of work.
+- The write side persists DDD aggregates with private setters, value objects, owned types, and domain events that must be dispatched on SaveChanges. 
+- EF Core handles all of this with built-in change tracking, identity map, and a transactional unit of work.
 - The read side serves API queries that rarely map cleanly to aggregates — they want flat projections, joins across tables, and minimal allocations.
 - Migrations need to live somewhere; rolling our own with FluentMigrator/DbUp is real work.
 - EF Core 8 with `AsNoTracking` and compiled queries is within ~10–20% of Dapper for typical workloads.
@@ -17,7 +18,8 @@ The team's first instinct was to replace EF Core with Dapper across the board, c
 
 Each service uses both, scoped to the side of CQRS where it fits:
 
-- **Command side** uses EF Core. Aggregates are loaded and saved through EF; the base `DbContext` (in `BuildingBlocks.Infrastructure`) implements `IUnitOfWork`, dispatches domain events, and persists outbox messages in the same transaction.
+- **Command side** uses EF Core. Aggregates are loaded and saved through EF; the base `DbContext` (in `BuildingBlocks.Infrastructure`) implements `IUnitOfWork`, 
+- dispatches domain events, and persists outbox messages in the same transaction.
 - **Query side** uses Dapper directly against a read connection. Query handlers receive a connection factory and write SQL by hand, returning flat DTOs.
 - **Migrations** are owned by EF Core (`dotnet ef migrations add ...`). Dapper queries assume the schema EF produces.
 

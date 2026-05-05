@@ -14,9 +14,9 @@ namespace BuildingBlocks.Infrastructure.Outbox;
 public sealed class OutboxProcessorService<TDbContext> : BackgroundService
     where TDbContext : DbContext
 {
-    private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(5);
-    private const int BatchSize = 50;
-    private const int MaxRetries = 5;
+    private readonly TimeSpan _pollInterval = TimeSpan.FromSeconds(5);
+    private const int _batchSize = 50;
+    private const int _maxRetries = 5;
 
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<OutboxProcessorService<TDbContext>> _logger;
@@ -42,7 +42,7 @@ public sealed class OutboxProcessorService<TDbContext> : BackgroundService
                 _logger.LogError(ex, "Outbox processor batch failed");
             }
 
-            await Task.Delay(PollInterval, stoppingToken).ConfigureAwait(false);
+            await Task.Delay(_pollInterval, stoppingToken).ConfigureAwait(false);
         }
     }
 
@@ -53,9 +53,9 @@ public sealed class OutboxProcessorService<TDbContext> : BackgroundService
         var publisher = scope.ServiceProvider.GetRequiredService<IOutboxPublisher>();
 
         var messages = await db.Set<OutboxMessage>()
-            .Where(m => m.ProcessedOnUtc == null && m.RetryCount < MaxRetries)
+            .Where(m => m.ProcessedOnUtc == null && m.RetryCount < _maxRetries)
             .OrderBy(m => m.OccurredOnUtc)
-            .Take(BatchSize)
+            .Take(_batchSize)
             .ToListAsync(cancellationToken)
             .ConfigureAwait(false);
 

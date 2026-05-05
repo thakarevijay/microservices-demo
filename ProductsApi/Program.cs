@@ -35,7 +35,7 @@ var requestCounter = Metrics.CreateCounter(
     "Total API requests",
     new CounterConfiguration
     {
-        LabelNames = new[] { "service", "endpoint", "pod" }
+        LabelNames = ["service", "endpoint", "pod"]
     });
 
 var requestDuration = Metrics.CreateHistogram(
@@ -43,7 +43,7 @@ var requestDuration = Metrics.CreateHistogram(
     "Request duration in seconds",
     new HistogramConfiguration
     {
-        LabelNames = new[] { "service", "endpoint" },
+        LabelNames = ["service", "endpoint"],
         Buckets = Histogram.LinearBuckets(start: 0.01, width: 0.05, count: 10)
     });
 
@@ -51,7 +51,7 @@ var requestDuration = Metrics.CreateHistogram(
 var productsViewed = Metrics.CreateCounter(
     "products_viewed_total",
     "Total product views",
-    new CounterConfiguration { LabelNames = new[] { "product_id" } });
+    new CounterConfiguration { LabelNames = ["product_id"] });
 
 var app = builder.Build();
 app.UseForwardedHeaders();
@@ -115,7 +115,7 @@ app.MapPost("/crash", () => { Task.Delay(200).ContinueWith(_ => Environment.Exit
 try
 {
     Log.Information("Starting Products API on pod {Pod}", podName);
-    app.Run("http://0.0.0.0:8080");
+    await app.RunAsync("http://0.0.0.0:8080");
 
 }
 catch (Exception ex)
@@ -124,6 +124,6 @@ catch (Exception ex)
 }
 finally
 {
-    Log.CloseAndFlush();
+    await Log.CloseAndFlushAsync();
 }
 public partial class Program;
